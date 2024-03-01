@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreVendaRequest;
+use App\Http\Requests\UpdateVendaRequest;
 use App\Models\ClienteModel;
 use App\Models\ItemVendaModel;
 use App\Models\ProdutoModel;
@@ -36,30 +37,51 @@ class VendasController extends Controller
      * Store a newly created resource in storage.
      */
     public function store(StoreVendaRequest $request)
-{
-    try {
-        $venda = VendaModel::create([
-            'cliente_id' => $request->input('cliente_id'),
-            'vendedor_id' => auth()->user()->id,
-            'forma_pagamento' => $request->input('forma_pagamento'),
-        ]);
-
-        $itensVenda = $request->input('itens');
-
-        foreach ($itensVenda['produto_id'] as $key => $produtoId) {
-            $venda->itens()->create([
-                'produto_id' => $produtoId,
-                'quantidade' => $itensVenda['quantidade'][$key],
-                'preco_unitario' => $itensVenda['preco_unitario'][$key],
-                'subtotal' => $itensVenda['subtotal'][$key],
+    {
+        try {
+            $venda = VendaModel::create([
+                'cliente_id' => $request->input('cliente_id'),
+                'vendedor_id' => auth()->user()->id,
+                'forma_pagamento' => $request->input('forma_pagamento'),
             ]);
-        }
 
-        return redirect()->route('vendas.index')->with('success', 'Venda criada com sucesso!');
-    } catch (\Exception $e) {
-        return redirect()->back()->with('error', 'Erro ao criar a venda. Por favor, tente novamente.');
+            $itensVenda = $request->input('itens');
+
+            foreach ($itensVenda['produto_id'] as $key => $produtoId) {
+                $venda->itens()->create([
+                    'produto_id' => $produtoId,
+                    'quantidade' => $itensVenda['quantidade'][$key],
+                    'preco_unitario' => $itensVenda['preco_unitario'][$key],
+                    'subtotal' => $itensVenda['subtotal'][$key],
+                ]);
+            }
+
+            if ($request->input('forma_pagamento') === 'credito') {
+                $this->gerarParcelas($venda);
+            }
+
+            return redirect()->route('vendas.index')->with('success', 'Venda criada com sucesso!');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Erro ao criar a venda. Por favor, tente novamente.');
+        }
     }
-}
+
+    private function gerarParcelas($venda)
+    {
+        $numeroParcelas = $venda->numero_parcelas;
+        $valorParcela = $venda->valor_parcela;
+        $dataVencimento = \Carbon\Carbon::parse($venda->data_vencimento_parcela);
+
+        for ($i = 1; $i <= $numeroParcelas; $i++) {
+            $venda->update([
+                'numero_parcelas' => $i,
+                'valor_parcela' => $valorParcela,
+                'data_vencimento_parcela' => $dataVencimento,
+            ]);
+
+            $dataVencimento->addMonth();
+        }
+    }
 
 
 
@@ -78,43 +100,39 @@ class VendasController extends Controller
      */
     public function edit(string $id)
     {
+        $clientes = ClienteModel::all();
+        $produtos = ProdutoModel::all();
         $venda = VendaModel::with('itens.produto')->find($id);
-        return view('vendas.edit', compact('venda'));
+        return view('vendas.edit', compact('venda', 'clientes', 'produtos'));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(UpdateVendaRequest $request, VendaModel $venda)
     {
-        try {
-            $venda = VendaModel::with('itens')->find($id);
+        $venda->update($request->all());
 
-            if (!$venda) {
-                return redirect()->route('vendas.index')->with('error', 'Venda não encontrada.');
-            }
-
-            $venda->cliente_id = $request->input('cliente_id');
-            $venda->vendedor_id = $request->input('vendedor_id');
-            $venda->forma_pagamento = $request->input('forma_pagamento');
-
-            $venda->save();
-
-            foreach ($request->input('itens') as $itemData) {
-                $item = $venda->itens->where('id', $itemData['id'])->first();
-
-                if ($item) {
-                    $item->quantidade = $itemData['quantidade'];
-                    $item->preco_unitario = $itemData['preco_unitario'];
-                    $item->subtotal = $itemData['subtotal'];
-                    $item->save();
-                }
-            }
-
-            return redirect()->route('vendas.index')->with('success', 'Venda atualizada com sucesso!');
-        } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Erro ao atualizar a venda. Por favor, tente novamente.');
+        $itensVenda = $request->input('itens');
+        $venda->itens()->delete();
+        foreach ($itensVenda as $item) {
+            $venda->itens()->create([
+                'produto_id' => $item['produto_id'],
+                'quantidade' => $item['quantidade'],
+                'preco_unitario' => $item['preco_unitario'],
+                'subtotal' => $item['subtotal'],
+            ]);
         }
+
+        if ($request->has('numero_parcelas')) {
+            $venda->update([
+                'numero_parcelas' => $request->input('numero_parcelas'),
+                'valor_parcela' => $request->input('valor_parcela'),
+                'data_vencimento_parcela' => $request->input('data_vencimento_parcela'),
+                 ]);
+        }
+
+        return redirect()->route('vendas.index')->with('success', 'Venda atualizada com sucesso!');
     }
 
     /**

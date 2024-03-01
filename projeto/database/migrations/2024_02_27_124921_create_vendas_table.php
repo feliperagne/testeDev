@@ -16,6 +16,9 @@ return new class extends Migration
             $table->unsignedBigInteger('cliente_id');
             $table->unsignedBigInteger('vendedor_id');
             $table->string('forma_pagamento');
+            $table->unsignedInteger('numero_parcelas')->nullable();
+            $table->decimal('valor_parcela', 10, 2)->nullable();
+            $table->date('data_vencimento_parcela')->nullable();
             $table->timestamps();
             $table->foreign('cliente_id')->references('id')->on('clientes');
             $table->foreign('vendedor_id')->references('id')->on('vendedores');

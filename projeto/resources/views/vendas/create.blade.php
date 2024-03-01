@@ -21,7 +21,6 @@
                 <input type="text" class="form-control" id="vendedor_id" name="vendedor_id" value="{{ auth()->user()->name }}" readonly>
             </div>
 
-
             <div class="mb-3">
                 <label for="cliente_id" class="form-label">Cliente:</label>
                 <select class="form-select" id="cliente_id" name="cliente_id">
@@ -34,7 +33,6 @@
                     <div class="text-danger">{{ $message }}</div>
                 @enderror
             </div>
-
 
             <div class="mb-3">
                 <label for="forma_pagamento" class="form-label">Forma de Pagamento:</label>
@@ -49,6 +47,34 @@
                 @enderror
             </div>
 
+            <div id="parcelas" style="display: none;">
+                <div class="mb-3">
+                    <label for="numero_parcelas" class="form-label">Número de Parcelas:</label>
+                    <input type="number" class="form-control" id="numero_parcelas" name="numero_parcelas">
+                    @error('numero_parcelas')
+                        <div class="text-danger">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <div class="mb-3">
+                    <label for="valor_parcela" class="form-label">Valor das Parcelas:</label>
+                    <input type="number" class="form-control" id="valor_parcela" name="valor_parcela">
+                    @error('valor_parcela')
+                        <div class="text-danger">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <div class="mb-3">
+                    <label for="data_vencimento_parcela" class="form-label">Data de vencimento da parcela:</label>
+                    <input type="date" class="form-control" id="data_vencimento_parcela" name="data_vencimento_parcela">
+                    @error('data_vencimento_parcela')
+                        <div class="text-danger">{{ $message }}</div>
+                    @enderror
+                </div>
+
+
+            </div>
+
             <div class="container-produtos">
                 <div class="row mb-2">
                     <div class="col-md-6">
@@ -59,8 +85,8 @@
                                 <option value="{{ $produto->id }}" data-preco="{{ $produto->preco }}">{{ $produto->nome }}</option>
                             @endforeach
                             @error('produto_id')
-                    <div class="text-danger">{{ $message }}</div>
-                @enderror
+                                <div class="text-danger">{{ $message }}</div>
+                            @enderror
                         </select>
                     </div>
 
@@ -68,23 +94,22 @@
                         <label for="itens[quantidade][]" class="form-label">Quantidade:</label>
                         <input type="number" class="form-control" name="itens[quantidade][]" >
                         @error('quantidade')
-                    <div class="text-danger">{{ $message }}</div>
-                @enderror
-
+                            <div class="text-danger">{{ $message }}</div>
+                        @enderror
                     </div>
                     <div class="col-md-2">
                         <label for="itens[preco_unitario][]" class="form-label">Preço:</label>
                         <input type="number" class="form-control" name="itens[preco_unitario][]" readonly>
                         @error('preco_unitario')
-                    <div class="text-danger">{{ $message }}</div>
-                @enderror
+                            <div class="text-danger">{{ $message }}</div>
+                        @enderror
                     </div>
                     <div class="col-md-2">
                         <label for="itens[subtotal][]" class="form-label">Subtotal:</label>
                         <input type="number" class="form-control" name="itens[subtotal][]" readonly>
                         @error('subtotal')
-                    <div class="text-danger">{{ $message }}</div>
-                @enderror
+                            <div class="text-danger">{{ $message }}</div>
+                        @enderror
                     </div>
                 </div>
             </div>
@@ -107,45 +132,52 @@
     </div>
 
     <script>
-       document.addEventListener('DOMContentLoaded', function () {
-    document.querySelector('.btn-adicionar-produto').addEventListener('click', adicionarProduto);
-    document.querySelector('.container-produtos').addEventListener('change', function (event) {
-        if (event.target.name && event.target.name.startsWith('itens[produto_id][]')) {
-            atualizarPrecoESubtotal(event);
+        document.addEventListener('DOMContentLoaded', function () {
+            const formaPagamentoSelect = document.getElementById('forma_pagamento');
+            const parcelasDiv = document.getElementById('parcelas');
+
+            formaPagamentoSelect.addEventListener('change', function () {
+                if (formaPagamentoSelect.value === 'credito') {
+                    parcelasDiv.style.display = 'block';
+                } else {
+                    parcelasDiv.style.display = 'none';
+                }
+            });
+
+            document.querySelector('.btn-adicionar-produto').addEventListener('click', adicionarProduto);
+            document.querySelector('.container-produtos').addEventListener('change', function (event) {
+                if (event.target.name && event.target.name.startsWith('itens[produto_id]')) {
+                    atualizarPrecoESubtotal(event);
+                }
+            });
+            document.querySelector('.container-produtos').addEventListener('input', function (event) {
+                if (event.target.name && event.target.name.startsWith('itens[quantidade]')) {
+                    atualizarPrecoESubtotal(event);
+                }
+            });
+        });
+
+        function adicionarProduto() {
+            const containerProdutos = document.querySelector('.container-produtos');
+            const novoProduto = containerProdutos.firstElementChild.cloneNode(true);
+
+            novoProduto.querySelectorAll('[name^="itens"]').forEach(function (element) {
+                element.value = '';
+            });
+            containerProdutos.appendChild(novoProduto);
+            novoProduto.querySelector('[name^="itens[produto_id]"]').addEventListener('change', atualizarPrecoESubtotal);
+            novoProduto.querySelector('[name^="itens[quantidade]"]').addEventListener('input', atualizarPrecoESubtotal);
         }
-    });
-    document.querySelector('.container-produtos').addEventListener('input', function (event) {
-        if (event.target.name && event.target.name.startsWith('itens[quantidade][]')) {
-            atualizarPrecoESubtotal(event);
+
+        function atualizarPrecoESubtotal(event) {
+            const produtoSelect = event.target.closest('.row').querySelector('[name^="itens[produto_id]"]');
+            const precoInput = produtoSelect.closest('.row').querySelector('[name^="itens[preco_unitario]"]');
+            const subtotalInput = produtoSelect.closest('.row').querySelector('[name^="itens[subtotal]"]');
+            const precoProduto = parseFloat(produtoSelect.options[produtoSelect.selectedIndex].getAttribute('data-preco')) || 0;
+            precoInput.value = precoProduto.toFixed(2);
+            const quantidade = parseFloat(event.target.value) || 0;
+            subtotalInput.value = (quantidade * precoProduto).toFixed(2);
         }
-    }); 
-});
-
-function adicionarProduto() {
-    const containerProdutos = document.querySelector('.container-produtos');
-    const novoProduto = containerProdutos.firstElementChild.cloneNode(true);
-
-    novoProduto.querySelectorAll('[name^="itens"]').forEach(function (element) {
-        element.value = '';
-    });
-    containerProdutos.appendChild(novoProduto);
-    novoProduto.querySelector('[name^="itens[produto_id][]"]').addEventListener('change', atualizarPrecoESubtotal);
-    novoProduto.querySelector('[name^="itens[quantidade][]"]').addEventListener('input', atualizarPrecoESubtotal);
-}
-
-function atualizarPrecoESubtotal(event) {
-    const produtoSelect = event.target.closest('.row').querySelector('[name^="itens[produto_id][]"]');
-    const precoInput = produtoSelect.closest('.row').querySelector('[name^="itens[preco_unitario][]"]');
-    const subtotalInput = produtoSelect.closest('.row').querySelector('[name^="itens[subtotal][]"]');
-    const precoProduto = parseFloat(produtoSelect.options[produtoSelect.selectedIndex].getAttribute('data-preco')) || 0;
-    precoInput.value = precoProduto.toFixed(2);
-    const quantidade = parseFloat(event.target.value) || 0;
-    subtotalInput.value = (quantidade * precoProduto).toFixed(2);
-}
-
     </script>
-
-
-
 </body>
 </html>

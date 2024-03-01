@@ -12,7 +12,9 @@ class VendaModel extends Model
     protected $table = 'vendas';
 
 
-    protected $fillable = ['cliente_id', 'vendedor_id', 'forma_pagamento'];
+    protected $fillable = ['cliente_id', 'vendedor_id',
+    'forma_pagamento', 'valor_parcela', 'numero_parcelas',
+    'data_vencimento_parcela' ];
 
     public function cliente()
     {
@@ -29,8 +31,4 @@ class VendaModel extends Model
         return $this->hasMany(ItemVendaModel::class, "venda_id");
     }
 
-    public function parcelas()
-    {
-        return $this->hasMany(ParcelaModel::class);
-    }
 }

@@ -25,7 +25,7 @@ class UpdateVendaRequest extends FormRequest
 
         return [
         'cliente_id' => 'nullable|exists:clientes,id',
-        'vendedor_id' => 'required|exists:vendedores,id',
+        'vendedor_id' => 'required',
         'forma_pagamento' => 'required|string|in:' . implode(',', $opcoesFormaPagamento),
         ];
     }
@@ -34,7 +34,7 @@ class UpdateVendaRequest extends FormRequest
         return [
             'cliente_id.exists' => 'O cliente selecionado não existe.',
             'vendedor_id.required' => 'O campo vendedor é obrigatório.',
-            'vendedor_id.exists' => 'O vendedor selecionado não existe.',
+            //'vendedor_id.exists' => 'O vendedor selecionado não existe.',
             'forma_pagamento.required' => 'O campo forma de pagamento é obrigatório.',
             'forma_pagamento.in' => 'A forma de pagamento selecionada não é válida.',
         ];
